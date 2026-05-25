@@ -59,7 +59,7 @@ function bigramSimilarity(a, b) {
   return (2 * matches) / (a.length - 1 + b.length - 1);
 }
 
-function enrichWithRatings(results) {
+function enrichWithRatings(results, municipality) {
   const raw = localStorage.getItem('schoolRatings');
   if (!raw) {
     return results.map(r => ({ ...r, rating: null, rank: null, sid: null, schoolType: null, city: null }));
@@ -77,19 +77,30 @@ function enrichWithRatings(results) {
     if (matches.length === 0) {
       enriched.push({ ...result, rating: null, rank: null, sid: null, schoolType: null, city: null });
     } else {
-      for (const match of matches) {
-        enriched.push({
-          ...result,
-          rating: match.rating,
-          rank: match.rank,
-          sid: match.sid,
-          schoolType: match.type,
-          city: match.city
-        });
-      }
+      const best = (municipality && matches.length > 1)
+        ? matches.find(m => m.city && m.city.toLowerCase() === municipality.toLowerCase()) || matches[0]
+        : matches[0];
+      enriched.push({
+        ...result,
+        rating: best.rating,
+        rank: best.rank,
+        sid: best.sid,
+        schoolType: best.type,
+        city: best.city
+      });
     }
   }
   return enriched;
+}
+
+async function fetchRatingsFromProxy() {
+  const resp = await fetch(PROXY_PREFIX + 'ratings');
+  if (!resp.ok) throw new Error(`Ratings fetch failed: ${resp.status}`);
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error);
+  if (!data.schools || !Array.isArray(data.schools)) throw new Error('Invalid response format');
+  localStorage.setItem('schoolRatings', JSON.stringify(data));
+  return { count: data.schools.length, lastUpdated: data.lastUpdated };
 }
 
 function importRatingsFromJSON(jsonString) {

@@ -33,7 +33,22 @@ if (status.lastUpdated) {
   ratingsInfoEl.textContent = `Ratings: ${status.count} schools (${status.lastUpdated})`;
 }
 
-// Ratings import
+// Ratings refresh
+const refreshRatingsBtn = document.getElementById('refresh-ratings-btn');
+refreshRatingsBtn.addEventListener('click', async () => {
+  refreshRatingsBtn.disabled = true;
+  ratingsInfoEl.textContent = 'Fetching ratings...';
+  try {
+    const result = await fetchRatingsFromProxy();
+    ratingsInfoEl.textContent = `Ratings: ${result.count} schools (${result.lastUpdated})`;
+  } catch (err) {
+    ratingsInfoEl.textContent = `Error: ${err.message}`;
+  } finally {
+    refreshRatingsBtn.disabled = false;
+  }
+});
+
+// Ratings file import (fallback)
 ratingsFileInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -69,7 +84,7 @@ form.addEventListener('submit', async (e) => {
   try {
     const results = await performLookup(streetNumber, streetName, municipality, addProgressStep);
     addProgressStep('Matching school ratings...');
-    const enriched = enrichWithRatings(results);
+    const enriched = enrichWithRatings(results, municipality);
     showResults(enriched);
   } catch (err) {
     showError(err.message);
