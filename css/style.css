@@ -93,6 +93,22 @@ body {
   border-color: var(--primary-bg);
 }
 
+.icon-btn.has-update {
+  position: relative;
+}
+
+.icon-btn.has-update::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  background: var(--error);
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+}
+
 /* Tagline */
 .tagline {
   font-size: 14px;
@@ -460,6 +476,65 @@ body {
 
 .rating-pill a:hover {
   text-decoration: underline;
+}
+
+/* Update banner */
+#update-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 -4px 16px rgba(26, 35, 126, 0.25);
+  z-index: 100;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+#update-banner span {
+  flex: 1;
+}
+
+#update-banner svg {
+  flex-shrink: 0;
+}
+
+#update-now-btn {
+  width: auto;
+  padding: 8px 16px;
+  background: #fff;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  margin: 0;
+  box-shadow: none;
+}
+
+#update-now-btn:hover {
+  background: #e8eaf6;
+}
+
+#update-banner .dismiss-btn {
+  color: rgba(255,255,255,0.7);
+}
+
+#update-banner .dismiss-btn:hover {
+  color: #fff;
+  background: transparent;
 }
 
 /* Install banner */
