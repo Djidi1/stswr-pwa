@@ -3,10 +3,13 @@ const loadingEl = document.getElementById('loading');
 const errorEl = document.getElementById('error');
 const resultsEl = document.getElementById('results');
 const resultsBody = document.getElementById('results-body');
+const resultsHeader = document.getElementById('results-header');
 const searchBtn = document.getElementById('search-btn');
 const addressInput = document.getElementById('address');
 const municipalitySelect = document.getElementById('municipality');
 const ratingsInfoEl = document.getElementById('ratings-info');
+const ratingsDot = document.getElementById('ratings-dot');
+const ratingsPill = document.getElementById('ratings-pill');
 const installBanner = document.getElementById('install-banner');
 const installBtn = document.getElementById('install-btn');
 const installDismiss = document.getElementById('install-dismiss');
@@ -23,29 +26,54 @@ if (savedResults) {
   try { showResults(JSON.parse(savedResults)); } catch (e) {}
 }
 
-// Ratings status
-const status = getRatingsStatus();
-if (status.lastUpdated) {
-  ratingsInfoEl.textContent = `Ratings: ${status.count} schools (${status.lastUpdated})`;
+// Ratings — auto-fetch if missing, otherwise show status
+initRatings();
+
+async function initRatings() {
+  const status = getRatingsStatus();
+  if (status.lastUpdated) {
+    setRatingsLoaded(status.count);
+  } else {
+    setRatingsLoading();
+    try {
+      const result = await fetchRatingsFromProxy();
+      setRatingsLoaded(result.count);
+    } catch (err) {
+      setRatingsError();
+    }
+  }
+}
+
+function setRatingsLoaded(count) {
+  ratingsDot.className = 'dot loaded';
+  ratingsInfoEl.textContent = `${count.toLocaleString()} schools rated`;
+}
+
+function setRatingsLoading() {
+  ratingsDot.className = 'dot loading';
+  ratingsInfoEl.textContent = 'Loading ratings...';
+}
+
+function setRatingsError() {
+  ratingsDot.className = 'dot';
+  ratingsInfoEl.textContent = 'Ratings unavailable';
 }
 
 // Ratings refresh
 const refreshRatingsBtn = document.getElementById('refresh-ratings-btn');
 refreshRatingsBtn.addEventListener('click', async () => {
   refreshRatingsBtn.disabled = true;
-  ratingsInfoEl.textContent = 'Fetching ratings...';
+  setRatingsLoading();
   try {
     const result = await fetchRatingsFromProxy();
-    ratingsInfoEl.textContent = `Ratings: ${result.count} schools (${result.lastUpdated})`;
+    setRatingsLoaded(result.count);
   } catch (err) {
-    ratingsInfoEl.textContent = `Error: ${err.message}`;
+    setRatingsError();
   } finally {
     refreshRatingsBtn.disabled = false;
   }
 });
 
-
-// Parse "100 Victoria St N" → { number: "100", name: "Victoria St N" }
 function parseAddress(input) {
   const parts = input.trim().split(/\s+/);
   const number = parts[0];
@@ -145,23 +173,56 @@ function showResults(results) {
 
   localStorage.setItem('lastResults', JSON.stringify(results));
 
+  resultsHeader.textContent = `${results.length} school${results.length === 1 ? '' : 's'} found`;
   resultsBody.innerHTML = '';
-  results.forEach(({ name, type, district, rating, sid, schoolType, city }) => {
-    const row = document.createElement('tr');
-    let ratingCell;
-    if (rating && sid) {
-      const url = `https://www.compareschoolrankings.org/school/on/${escapeHtml(schoolType || 'elementary')}/${escapeHtml(sid)}`;
-      ratingCell = `<a href="${url}" target="_blank" rel="noopener" class="rating-link">${escapeHtml(String(rating))}/10</a>`;
-    } else if (rating) {
-      ratingCell = `${escapeHtml(String(rating))}/10`;
-    } else {
-      ratingCell = '—';
-    }
-    row.innerHTML = `<td>${escapeHtml(name)}</td><td>${escapeHtml(type)}</td><td>${escapeHtml(district)}</td><td>${escapeHtml(city || '—')}</td><td>${ratingCell}</td>`;
-    resultsBody.appendChild(row);
+
+  results.forEach((school, i) => {
+    const card = document.createElement('div');
+    card.className = 'school-card';
+    card.style.animationDelay = `${i * 0.05}s`;
+
+    const ratingHtml = buildRatingPill(school);
+    const typeLower = (school.type || 'elementary').toLowerCase();
+    const badgeClass = typeLower === 'secondary' ? 'type-badge secondary' : 'type-badge';
+
+    card.innerHTML = `
+      <div class="school-info">
+        <div class="school-name">${escapeHtml(school.name)}</div>
+        <div class="school-meta">
+          <span class="${badgeClass}">${escapeHtml(school.type || 'Elementary')}</span>
+          <span class="sep">&middot;</span>
+          <span>${escapeHtml(school.district)}</span>
+          ${school.city ? `<span class="sep">&middot;</span><span>${escapeHtml(school.city)}</span>` : ''}
+        </div>
+      </div>
+      ${ratingHtml}
+    `;
+    resultsBody.appendChild(card);
   });
 
   resultsEl.classList.remove('hidden');
+}
+
+function buildRatingPill(school) {
+  const { rating, sid, schoolType } = school;
+
+  if (!rating) {
+    return '<div class="rating-pill none">—</div>';
+  }
+
+  const num = parseFloat(rating);
+  let colorClass = 'mid';
+  if (num >= 7) colorClass = 'high';
+  else if (num < 5) colorClass = 'low';
+
+  const display = `${num}/10`;
+
+  if (sid) {
+    const url = `https://www.compareschoolrankings.org/school/on/${encodeURIComponent(schoolType || 'elementary')}/${encodeURIComponent(sid)}`;
+    return `<div class="rating-pill ${colorClass}"><a href="${url}" target="_blank" rel="noopener">${display}</a></div>`;
+  }
+
+  return `<div class="rating-pill ${colorClass}">${display}</div>`;
 }
 
 function escapeHtml(str) {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>STSWR School Lookup</title>
+  <title>School Lookup — Waterloo Region</title>
   <meta name="theme-color" content="#1a237e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,28 +14,36 @@
 </head>
 <body>
   <div class="container">
-    <h1>School Lookup</h1>
-
-    <div class="ratings-bar">
-      <span id="ratings-info">Ratings: not loaded</span>
-      <button id="refresh-ratings-btn" class="file-btn">Refresh</button>
+    <div class="app-header">
+      <h1>School Lookup</h1>
+      <div class="header-actions">
+        <button id="refresh-ratings-btn" class="icon-btn" title="Refresh ratings" aria-label="Refresh ratings">&#x21bb;</button>
+        <button id="update-btn" class="icon-btn" title="Update app" aria-label="Update app">&#x2699;</button>
+      </div>
     </div>
 
-    <form id="lookup-form">
+    <p class="tagline">Find your assigned schools in Waterloo Region</p>
+
+    <div class="ratings-pill" id="ratings-pill">
+      <span class="dot" id="ratings-dot"></span>
+      <span id="ratings-info">Loading ratings...</span>
+    </div>
+
+    <form id="lookup-form" class="search-form">
       <div class="field">
         <label for="address">Address</label>
-        <input type="text" id="address" required placeholder="100 Victoria" autocomplete="off">
+        <input type="text" id="address" required placeholder="e.g. 100 Victoria St N" autocomplete="off">
       </div>
       <div class="field">
         <label for="municipality">Municipality</label>
         <select id="municipality">
           <option value="Kitchener">Kitchener</option>
           <option value="Waterloo">Waterloo</option>
+          <option value="Cambridge">Cambridge</option>
           <option value="Ayr">Ayr</option>
           <option value="Baden">Baden</option>
           <option value="Bloomingdale">Bloomingdale</option>
           <option value="Breslau">Breslau</option>
-          <option value="Cambridge">Cambridge</option>
           <option value="Conestogo">Conestogo</option>
           <option value="Crosshill">Crosshill</option>
           <option value="Elmira">Elmira</option>
@@ -57,7 +65,7 @@
           <option value="Woolwich">Woolwich</option>
         </select>
       </div>
-      <button type="submit" id="search-btn">Search</button>
+      <button type="submit" id="search-btn" class="search-btn">Search</button>
     </form>
 
     <div id="loading" class="hidden">
@@ -68,29 +76,12 @@
     <div id="error" class="hidden"></div>
 
     <div id="results" class="hidden">
-      <h2>Results</h2>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>School Name</th>
-              <th>Type</th>
-              <th>District</th>
-              <th>City</th>
-              <th>Rating</th>
-            </tr>
-          </thead>
-          <tbody id="results-body"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="update-bar">
-      <button id="update-btn" class="link-btn">Update app</button>
+      <div class="results-header" id="results-header"></div>
+      <div class="school-cards" id="results-body"></div>
     </div>
 
     <div id="install-banner" class="hidden">
-      <span>Install this app for quick access</span>
+      <span>Install for quick access</span>
       <button id="install-btn">Install</button>
       <button id="install-dismiss" class="dismiss-btn">&times;</button>
     </div>

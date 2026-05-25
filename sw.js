@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stswr-pwa-v3';
+const CACHE_NAME = 'stswr-pwa-v4';
 
 const STATIC_ASSETS = [
   './',
