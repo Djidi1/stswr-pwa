@@ -253,6 +253,26 @@ tr:hover td {
   margin: 0;
 }
 
+.update-bar {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.link-btn {
+  background: none;
+  color: #666;
+  font-size: 12px;
+  text-decoration: underline;
+  padding: 4px 8px;
+  width: auto;
+  margin: 0;
+}
+
+.link-btn:hover {
+  color: #1a237e;
+  background: none;
+}
+
 .hidden {
   display: none !important;
 }
