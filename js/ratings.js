@@ -103,19 +103,6 @@ async function fetchRatingsFromProxy() {
   return { count: data.schools.length, lastUpdated: data.lastUpdated };
 }
 
-function importRatingsFromJSON(jsonString) {
-  const data = JSON.parse(jsonString);
-  if (!data.schools || !Array.isArray(data.schools)) {
-    throw new Error('Invalid format: expected { "schools": [...] }');
-  }
-  const ratingsData = {
-    lastUpdated: new Date().toISOString().split('T')[0],
-    schools: data.schools
-  };
-  localStorage.setItem('schoolRatings', JSON.stringify(ratingsData));
-  return { count: data.schools.length, lastUpdated: ratingsData.lastUpdated };
-}
-
 function getRatingsStatus() {
   const raw = localStorage.getItem('schoolRatings');
   if (!raw) return { lastUpdated: null, count: 0 };

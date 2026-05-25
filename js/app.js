@@ -8,7 +8,6 @@ const streetNumberInput = document.getElementById('street-number');
 const streetNameInput = document.getElementById('street-name');
 const municipalityInput = document.getElementById('municipality');
 const ratingsInfoEl = document.getElementById('ratings-info');
-const ratingsFileInput = document.getElementById('ratings-file');
 const installBanner = document.getElementById('install-banner');
 const installBtn = document.getElementById('install-btn');
 const installDismiss = document.getElementById('install-dismiss');
@@ -48,22 +47,6 @@ refreshRatingsBtn.addEventListener('click', async () => {
   }
 });
 
-// Ratings file import (fallback)
-ratingsFileInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const result = importRatingsFromJSON(reader.result);
-      ratingsInfoEl.textContent = `Ratings: ${result.count} schools (${result.lastUpdated})`;
-    } catch (err) {
-      ratingsInfoEl.textContent = `Error: ${err.message}`;
-    }
-  };
-  reader.readAsText(file);
-  ratingsFileInput.value = '';
-});
 
 // Form submit
 form.addEventListener('submit', async (e) => {
