@@ -62,6 +62,7 @@ function setRatingsError() {
 // Ratings refresh
 const refreshRatingsBtn = document.getElementById('refresh-ratings-btn');
 refreshRatingsBtn.addEventListener('click', async () => {
+  document.getElementById('menu-dropdown').classList.add('hidden');
   refreshRatingsBtn.disabled = true;
   setRatingsLoading();
   try {
