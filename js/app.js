@@ -185,10 +185,12 @@ function showResults(results) {
     const ratingHtml = buildRatingPill(school);
     const typeLower = (school.type || 'elementary').toLowerCase();
     const badgeClass = typeLower === 'secondary' ? 'type-badge secondary' : 'type-badge';
+    const mapsQuery = encodeURIComponent(`${school.name}, ${school.city || municipality || 'Waterloo Region'}, Ontario`);
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
 
     card.innerHTML = `
       <div class="school-info">
-        <div class="school-name">${escapeHtml(school.name)}</div>
+        <a href="${mapsUrl}" target="_blank" rel="noopener" class="school-name">${escapeHtml(school.name)}</a>
         <div class="school-meta">
           <span class="${badgeClass}">${escapeHtml(school.type || 'Elementary')}</span>
           <span class="sep">&middot;</span>
