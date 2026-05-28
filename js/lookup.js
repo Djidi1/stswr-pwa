@@ -52,7 +52,7 @@ async function resolveStreetName(streetName, municipality) {
 }
 
 async function queryAutocomplete(prefix, municipality) {
-  const resp = await fetchWithTimeout(`${TARGET_URL}.aspx/GetCompletionList`, {
+  const resp = await fetchWithTimeout(PROXY_PREFIX + 'autocomplete', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
     body: JSON.stringify({

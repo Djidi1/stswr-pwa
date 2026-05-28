@@ -14,6 +14,11 @@ export default {
       return handleLookup(request);
     }
 
+    // /autocomplete endpoint: session-aware street name autocomplete
+    if (url.pathname === '/autocomplete') {
+      return handleAutocomplete(request);
+    }
+
     // /ratings endpoint: fetches school ratings from compareschoolrankings.org
     if (url.pathname === '/ratings') {
       return handleRatings();
@@ -38,6 +43,8 @@ export default {
 
     try {
       const headers = buildUpstreamHeaders();
+      headers.set('Referer', `${parsed.origin}/`);
+      headers.set('Origin', parsed.origin);
       const ct = request.headers.get('content-type');
       if (ct) headers.set('Content-Type', ct);
 
@@ -137,6 +144,45 @@ async function handleLookup(request) {
     return jsonResponse({ elementaryHtml: resultHtml, secondaryHtml });
   } catch (err) {
     return errorResponse(err.message);
+  }
+}
+
+async function handleAutocomplete(request) {
+  try {
+    const { prefixText, count, contextKey } = await request.json();
+    let cookieJar = {};
+
+    // Establish session by visiting the page first
+    const pageResult = await fetchFollowRedirects(`${BASE_URL}/Eligibility`, {
+      method: 'GET',
+      headers: buildUpstreamHeaders()
+    }, cookieJar);
+    cookieJar = pageResult.cookies;
+
+    // Now call the autocomplete endpoint with session cookies
+    const headers = buildUpstreamHeaders();
+    headers.set('Content-Type', 'application/json; charset=utf-8');
+    headers.set('Referer', `${BASE_URL}/Eligibility`);
+    headers.set('Origin', BASE_URL);
+    headers.set('X-Requested-With', 'XMLHttpRequest');
+    const cookieStr = Object.entries(cookieJar).map(([k, v]) => `${k}=${v}`).join('; ');
+    if (cookieStr) headers.set('Cookie', cookieStr);
+
+    const body = JSON.stringify({ prefixText, count: count || 100, contextKey });
+    headers.set('Content-Length', new TextEncoder().encode(body).length.toString());
+
+    const resp = await fetch(`${BASE_URL}/Eligibility.aspx/GetCompletionList`, {
+      method: 'POST',
+      headers,
+      body
+    });
+
+    const respBody = await resp.text();
+    const responseHeaders = corsHeaders();
+    responseHeaders.set('Content-Type', resp.headers.get('Content-Type') || 'application/json');
+    return new Response(respBody, { status: resp.status, headers: responseHeaders });
+  } catch (err) {
+    return errorResponse('Autocomplete failed: ' + err.message);
   }
 }
 
