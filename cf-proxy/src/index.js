@@ -93,10 +93,13 @@ async function handleLookup(request) {
       return jsonResponse({ error: 'Could not extract form tokens' }, 502);
     }
 
+    // Resolve actual city value from the page's dropdown
+    const cityValue = extractDropdownValue(pageHtml, 'MainContent_eaSchool_ddlCity', municipality);
+
     // Step 2: POST the form with session cookies
     const formData = buildFormData({
       viewState, viewStateGenerator, eventValidation,
-      streetNumber, streetName, municipality, district
+      streetNumber, streetName, municipality: cityValue || municipality, district
     });
 
     const submitHeaders = buildUpstreamHeaders();
@@ -120,9 +123,10 @@ async function handleLookup(request) {
 
     let secondaryHtml = '';
     if (vs2 && ev2) {
+      const cityValue2 = extractDropdownValue(resultHtml, 'MainContent_eaSchool_ddlCity', municipality) || cityValue || municipality;
       const secFormData = buildFormData({
         viewState: vs2, viewStateGenerator: vsg2, eventValidation: ev2,
-        streetNumber, streetName, municipality, district,
+        streetNumber, streetName, municipality: cityValue2, district,
         grade: 'a85cd392-045a-47c3-b121-04d7efdae5ab'
       });
 
@@ -152,19 +156,25 @@ async function handleAutocomplete(request) {
     const { prefixText, count, contextKey } = await request.json();
     let cookieJar = {};
 
-    // Establish session by visiting the page first
+    // Establish session by visiting the page first (follows redirects, collects cookies)
     const pageResult = await fetchFollowRedirects(`${BASE_URL}/Eligibility`, {
       method: 'GET',
       headers: buildUpstreamHeaders()
     }, cookieJar);
     cookieJar = pageResult.cookies;
 
-    // Now call the autocomplete endpoint with session cookies
-    const headers = buildUpstreamHeaders();
+    // Build headers that mimic a real browser AJAX call from the page
+    const headers = new Headers();
+    headers.set('Host', ALLOWED_HOST);
+    headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    headers.set('Accept', 'application/json, text/javascript, */*; q=0.01');
+    headers.set('Accept-Language', 'en-CA,en;q=0.9');
     headers.set('Content-Type', 'application/json; charset=utf-8');
     headers.set('Referer', `${BASE_URL}/Eligibility`);
     headers.set('Origin', BASE_URL);
     headers.set('X-Requested-With', 'XMLHttpRequest');
+    headers.set('Cache-Control', 'no-cache');
+    headers.set('Pragma', 'no-cache');
     const cookieStr = Object.entries(cookieJar).map(([k, v]) => `${k}=${v}`).join('; ');
     if (cookieStr) headers.set('Cookie', cookieStr);
 
@@ -412,7 +422,7 @@ function buildFormData({ viewState, viewStateGenerator, eventValidation, streetN
   formData.set('ctl00$MainContent$eaSchool$txtStreetNumber', streetNumber);
   formData.set('ctl00$MainContent$eaSchool$meeStreetNumber_ClientState', '');
   formData.set('ctl00$MainContent$eaSchool$txtStreetName', streetName);
-  formData.set('ctl00$MainContent$eaSchool$ddlCity', municipality.toUpperCase());
+  formData.set('ctl00$MainContent$eaSchool$ddlCity', municipality);
   formData.set('ctl00$MainContent$eaSchool$hfPostCode', '');
   formData.set('ctl00$MainContent$eaSchool$ddlDistrict', district);
   if (grade) {
@@ -430,6 +440,22 @@ function extractHidden(html, name) {
   const regex = new RegExp(`id="${name}"[^>]*value="([^"]*)"`, 'i');
   const match = html.match(regex);
   return match ? match[1] : null;
+}
+
+function extractDropdownValue(html, selectId, targetCity) {
+  const selectRegex = new RegExp(`id="${selectId}"[^>]*>([\\s\\S]*?)</select>`, 'i');
+  const selectMatch = html.match(selectRegex);
+  if (!selectMatch) return null;
+
+  const optionRegex = /value="([^"]*)"/gi;
+  const options = [];
+  let m;
+  while ((m = optionRegex.exec(selectMatch[1])) !== null) {
+    options.push(m[1]);
+  }
+
+  const upper = targetCity.toUpperCase();
+  return options.find(o => o.toUpperCase() === upper) || options.find(o => o.toUpperCase().includes(upper)) || null;
 }
 
 
