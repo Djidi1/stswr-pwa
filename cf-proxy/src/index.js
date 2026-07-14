@@ -116,32 +116,58 @@ async function handleLookup(request) {
     const resultHtml = submitResult.body;
     cookieJar = submitResult.cookies;
 
-    // Step 3: Secondary lookup (grade 9) using result page's viewstate
+    // Step 3: Secondary lookup — reset form to get enabled ddlGrade, then resubmit with grade 09
     const vs2 = extractHidden(resultHtml, '__VIEWSTATE');
     const vsg2 = extractHidden(resultHtml, '__VIEWSTATEGENERATOR');
     const ev2 = extractHidden(resultHtml, '__EVENTVALIDATION');
 
     let secondaryHtml = '';
     if (vs2 && ev2) {
-      const cityValue2 = extractDropdownValue(resultHtml, 'MainContent_eaSchool_ddlCity', municipality) || cityValue || municipality;
-      const secFormData = buildFormData({
+      const resetFormData = buildResetFormData({
         viewState: vs2, viewStateGenerator: vsg2, eventValidation: ev2,
-        streetNumber, streetName, municipality: cityValue2, district,
-        grade: 'a85cd392-045a-47c3-b121-04d7efdae5ab'
+        streetNumber, streetName
       });
 
-      const secHeaders = buildUpstreamHeaders();
-      secHeaders.set('Content-Type', 'application/x-www-form-urlencoded');
-      const secBody = secFormData.toString();
-      secHeaders.set('Content-Length', new TextEncoder().encode(secBody).length.toString());
+      const resetHeaders = buildUpstreamHeaders();
+      resetHeaders.set('Content-Type', 'application/x-www-form-urlencoded');
+      const resetBody = resetFormData.toString();
+      resetHeaders.set('Content-Length', new TextEncoder().encode(resetBody).length.toString());
 
       try {
-        const secResult = await fetchFollowRedirects(`${BASE_URL}/Eligibility`, {
+        const resetResult = await fetchFollowRedirects(`${BASE_URL}/Eligibility`, {
           method: 'POST',
-          headers: secHeaders,
-          body: secBody
+          headers: resetHeaders,
+          body: resetBody
         }, cookieJar);
-        secondaryHtml = secResult.body;
+        cookieJar = resetResult.cookies;
+
+        const resetHtml = resetResult.body;
+        const vs3 = extractHidden(resetHtml, '__VIEWSTATE');
+        const vsg3 = extractHidden(resetHtml, '__VIEWSTATEGENERATOR');
+        const ev3 = extractHidden(resetHtml, '__EVENTVALIDATION');
+
+        if (vs3 && ev3) {
+          const cityValue3 = extractDropdownValue(resetHtml, 'MainContent_eaSchool_ddlCity', municipality) || municipality;
+          const grade09 = extractGrade09Guid(resetHtml) || 'a85cd392-045a-47c3-b121-04d7efdae5ab';
+
+          const secFormData = buildFormData({
+            viewState: vs3, viewStateGenerator: vsg3, eventValidation: ev3,
+            streetNumber, streetName, municipality: cityValue3, district,
+            grade: grade09
+          });
+
+          const secHeaders = buildUpstreamHeaders();
+          secHeaders.set('Content-Type', 'application/x-www-form-urlencoded');
+          const secBody = secFormData.toString();
+          secHeaders.set('Content-Length', new TextEncoder().encode(secBody).length.toString());
+
+          const secResult = await fetchFollowRedirects(`${BASE_URL}/Eligibility`, {
+            method: 'POST',
+            headers: secHeaders,
+            body: secBody
+          }, cookieJar);
+          secondaryHtml = secResult.body;
+        }
       } catch {}
     }
 
@@ -414,9 +440,6 @@ function buildFormData({ viewState, viewStateGenerator, eventValidation, streetN
   formData.set('__VIEWSTATEGENERATOR', viewStateGenerator || '');
   formData.set('__VIEWSTATEENCRYPTED', '');
   formData.set('__EVENTVALIDATION', eventValidation);
-  formData.set('__EVENTTARGET', '');
-  formData.set('__EVENTARGUMENT', '');
-  formData.set('__LASTFOCUS', '');
   formData.set('ctl00$hfApplicationRoot', '/');
   formData.set('ctl00$hfDateFormat', 'yy-mm-dd');
   formData.set('ctl00$MainContent$eaSchool$txtStreetNumber', streetNumber);
@@ -428,11 +451,27 @@ function buildFormData({ viewState, viewStateGenerator, eventValidation, streetN
   if (grade) {
     formData.set('ctl00$MainContent$eaSchool$ddlGrade', grade);
   }
-  formData.set('ctl00$_cbDatabase', '16f9713c-1b82-45f8-9b85-376db865fb68');
   formData.set('ctl00$ddlLanguages', 'en-CA');
   formData.set('ctl00$cbDefaultDatabase', '16f9713c-1b82-45f8-9b85-376db865fb68');
-  formData.set('hiddenInputToUpdateATBuffer_CommonToolkitScripts', '1');
   formData.set('ctl00$MainContent$btnSubmit', 'Submit');
+  return formData;
+}
+
+function buildResetFormData({ viewState, viewStateGenerator, eventValidation, streetNumber, streetName }) {
+  const formData = new URLSearchParams();
+  formData.set('__VIEWSTATE', viewState);
+  formData.set('__VIEWSTATEGENERATOR', viewStateGenerator || '');
+  formData.set('__VIEWSTATEENCRYPTED', '');
+  formData.set('__EVENTVALIDATION', eventValidation);
+  formData.set('ctl00$hfApplicationRoot', '/');
+  formData.set('ctl00$hfDateFormat', 'yy-mm-dd');
+  formData.set('ctl00$MainContent$eaSchool$txtStreetNumber', streetNumber);
+  formData.set('ctl00$MainContent$eaSchool$meeStreetNumber_ClientState', '');
+  formData.set('ctl00$MainContent$eaSchool$txtStreetName', streetName);
+  formData.set('ctl00$MainContent$eaSchool$hfPostCode', '');
+  formData.set('ctl00$ddlLanguages', 'en-CA');
+  formData.set('ctl00$cbDefaultDatabase', '16f9713c-1b82-45f8-9b85-376db865fb68');
+  formData.set('ctl00$MainContent$btnReset', 'New Search');
   return formData;
 }
 
@@ -440,6 +479,13 @@ function extractHidden(html, name) {
   const regex = new RegExp(`id="${name}"[^>]*value="([^"]*)"`, 'i');
   const match = html.match(regex);
   return match ? match[1] : null;
+}
+
+function extractGrade09Guid(html) {
+  const selectMatch = html.match(/<select[^>]*name="ctl00\$MainContent\$eaSchool\$ddlGrade"[^>]*>([\s\S]*?)<\/select>/i);
+  if (!selectMatch) return null;
+  const optionMatch = selectMatch[1].match(/<option[^>]*value="([^"]+)"[^>]*>\s*(?:Grade\s*)?0?9\b/i);
+  return optionMatch ? optionMatch[1] : null;
 }
 
 function extractDropdownValue(html, selectId, targetCity) {
